@@ -5,7 +5,13 @@ See also https://caffe2.ai/docs/tutorial-MNIST.html.
 Caffe2 has to be built with USE_LMDB defined to use the training and testing samples from an lmdb database.
 By default Caffe2 is built without LMDB support. To build Caffe2 with LMDB support for example in Ubuntu 16.04 
 follow  instructions from https://caffe2.ai/docs/getting-started.html?platform=ubuntu&configuration=compile, 
-but execute the command    export USE_LMDB=1   before starting the build with    python setup.py install --user
+but execute the command    
+
+export USE_LMDB=1   
+
+before starting the build with    
+
+python setup.py install --user
 
 The following changes have been made to the original script:
 - adapted the IPython script to Python.
