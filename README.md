@@ -16,7 +16,7 @@ python setup.py install --user
 The following changes have been made to the original script:
 - adapted the IPython script to Python.
 - added command line parameters
-- adopted drawing training and testing computational graphs to Python and added a few miscellaneous visualizations.
+- adapted drawing the training and testing computational graphs to Python and added a few miscellaneous visualizations.
 - added classification of a single image. The image should be an RGB image of an arbitrary size
 
 The default number of training iterations total_iters is 200. My experiments show that it's not nearly enough 
