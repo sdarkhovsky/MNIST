@@ -21,6 +21,8 @@ from caffe2.python import (
     visualize,
     workspace,
 )
+from scipy import ndimage
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -52,15 +54,19 @@ def parse_args():
         default=200,
         type=int
     )
+
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(1)
-    return parser.parse_args()
+
+    args = parser.parse_args();
+    if (args.test and args.train) or (not args.test and not args.train):
+       print("Test or train?")
+       sys.exit(1)
+
+    return args
 
 args = parse_args()
-if (args.test and args.train) or (not args.test and not args.train):
-   print("Test or train?")
-
 # If you would like to see some really detailed initializations,
 # you can change --caffe2_log_level=0 to --caffe2_log_level=-1
 core.GlobalInit(['caffe2', '--caffe2_log_level=1'])
@@ -428,36 +434,88 @@ if args.train:
 	_ = visualize.NCHW.ShowMultiple(blob)
 	pyplot.savefig(os.path.join(figure_folder, 'mnist_testing_data.png'))
 
-def get_image_blob(im, target_size):
+def preprocess_mnist_image():
+    '''
+    As suggested at https://medium.com/@o.kroeger/tensorflow-mnist-and-your-own-handwritten-digits-4d1cd32bbab4
+    All images are size normalized to fit in a 20x20 pixel box and there are centered in a 28x28 image using 
+    the center of mass. These are important information for our preprocessing.
+
+    '''
+    gray = cv2.imread(args.image_path, cv2.IMREAD_GRAYSCALE)
+   
+    # make digits white on black background
+    (thresh, gray) = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+
+    # invert the image if necessary to have the black background
+    if gray[0,0] > thresh:
+       gray = 255 - gray
+
+    # find minimal bounding box which can fit the drawing and resize it to a new image 20x20
+    rows,cols = gray.shape   
+    top_row = 0 
+    while np.sum(gray[top_row]) == 0 and top_row < rows:
+       top_row += 1
+
+    left_col = 0
+    while np.sum(gray[:,left_col]) == 0 and left_col < cols:
+       left_col += 1
+
+    bottom_row=rows - 1
+    while np.sum(gray[bottom_row]) == 0 and bottom_row >= top_row:
+       bottom_row -= 1
+
+    right_col = cols - 1
+    while np.sum(gray[:,right_col]) == 0 and right_col >= left_col:
+       right_col -= 1
+    
+    gray = gray[top_row:bottom_row, left_col:right_col]
+    rows,cols = gray.shape
+  
+    box_size = 20 
+
+    if rows > cols:
+       factor = float(box_size)/rows
+       rows = box_size
+       cols = int(round(cols*factor))
+    else:
+       factor = float(box_size)/cols
+       cols = box_size
+       rows = int(round(rows*factor))
+    gray = cv2.resize(gray, (cols, rows))
+
+
+    # find the mass center of the image
+    gray = gray / 255.0
+    cy,cx = ndimage.measurements.center_of_mass(gray) 
+
+    # copy the image to 28x28 box so that the mass center will be at 14,14
+    new_size = 2*box_size
+    im = np.zeros((new_size,new_size))
+    s_y = int(new_size/2-cy)
+    s_x = int(new_size/2-cx)
+
+    im[s_y:s_y+rows, s_x:s_x+cols] = gray
+ 
+    # extract 28x28 box
+    s = int((new_size-28)/2)
+    gray =  im[s:s+28,s:s+28]
+    return gray
+
+def get_image_blob():
     '''
     im is an UINT8 image with the shape Height, Width, Color channel
     Returns:
        blob (ndarray): a data blob holding an image
     '''
-    # Convert to core.DataType.FLOAT (np.float32) 
-    im = im.astype(np.float32, copy=False)
-    im_shape = im.shape
-    im_scale_x = float(target_size) / float(im_shape[1])
-    im_scale_y = float(target_size) / float(im_shape[0])
-    # Rescale to the specified target size
-    im = cv2.resize(
-        im,
-        None,
-        None,
-        fx=im_scale_x,
-        fy=im_scale_y,
-        interpolation=cv2.INTER_LINEAR
-    )
-    # scale data from [0,255] down to [0,1]
-    im /= 256.0    
-    
+    im = preprocess_mnist_image()
+ 
     """Convert an image into a network input. 
     float32 numpy ndarray format
     Output is a 4D NCHW tensor of the image
     """
     blob = np.zeros((1, 1, im.shape[0], im.shape[1]), dtype=np.float32)
     # convert image to monochrome before copying it into the blob
-    blob[0, 0, 0:im.shape[0], 0:im.shape[1]] = np.dot(im[...,:3], [0.299, 0.587, 0.114])
+    blob[0, 0, 0:im.shape[0], 0:im.shape[1]] = im
     # Axis order are: (batch elem, channel, height, width)
     return blob
 
@@ -480,8 +538,7 @@ if args.test:
 	print("The blobs in the workspace after loading the model: {}".format(workspace.Blobs()))
 
 	# feed an image to the loaded model
-	im = cv2.imread(args.image_path)
-	blob = get_image_blob(im, 28)
+	blob = get_image_blob()
 	workspace.FeedBlob("data", blob)
 
 	# predict

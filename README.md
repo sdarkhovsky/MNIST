@@ -14,12 +14,10 @@ before starting the build with
 python setup.py install --user
 
 The following changes have been made to the original script:
-- adapted the IPython script to Python.
 - added command line parameters
-- adapted drawing the training and testing computational graphs to Python and added a few miscellaneous visualizations.
-- added classification of a single image. The image should be an RGB image of an arbitrary size
-
-The default number of training iterations total_iters is 200. My experiments show that it's not nearly enough 
-to classify an arbitrary handwritten symbol, even though the final training statistics had 0.92 accuracy. 
-See for example correctly predicted data/4.png extracted from training data and incorrectly predicted data/4a.png
-
+- modified drawing the training and testing computational graphs and added a few miscellaneous visualizations.
+- added classification of a real handwritten image (not from the MNIST database). The image should be an RGB image of 
+  an arbitrary size. The image should contain a single digit. The program automatically recognizes whether the image 
+  should be inverted during preprocessing. The algorithm for preprocessing was largely taken from  
+  https://medium.com/@o.kroeger/tensorflow-mnist-and-your-own-handwritten-digits-4d1cd32bbab4 
+  The preprocessing is necessary for successful recognition.
